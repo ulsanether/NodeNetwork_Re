@@ -27,6 +27,11 @@ namespace NodeNetwork.Views
 {
     public partial class NetworkView : IViewFor<NetworkViewModel>
     {
+        // Number of visual tree levels between the drag OriginalSource and the ItemsControl
+        // that contains the drag Thumb wrapper. Used to verify that only the outer drag Thumb
+        // (not an inner resize thumb) triggered the drag.
+        private const int DragSourceAncestorLevels = 6;
+
         #region ViewModel
         public static readonly DependencyProperty ViewModelProperty = DependencyProperty.Register(nameof(ViewModel),
             typeof(NetworkViewModel), typeof(NetworkView), new PropertyMetadata(null));
@@ -182,6 +187,7 @@ namespace NodeNetwork.Views
 	        if (DesignerProperties.GetIsInDesignMode(this)) { return; }
 
 			SetupNodes();
+            SetupCommentGroups();
             SetupConnections();
             SetupCutLine();
             SetupViewportBinding();
@@ -196,6 +202,13 @@ namespace NodeNetwork.Views
         {
             this.WhenActivated(d => d(
                 this.BindList(ViewModel, vm => vm.Nodes, v => v.nodesControl.ItemsSource)
+            ));
+        }
+
+        private void SetupCommentGroups()
+        {
+            this.WhenActivated(d => d(
+                this.BindList(ViewModel, vm => vm.CommentGroups, v => v.commentGroupsControl.ItemsSource)
             ));
         }
 
@@ -500,7 +513,7 @@ namespace NodeNetwork.Views
             // For some reason, trying to stop the MouseMove event from bubbling up does not work, so instead we check
             // here what caused this drag event. Only the Thumb around the node may cause drag events.
 
-            bool isCorrectSource = WPFUtils.GetVisualAncestorNLevelsUp((DependencyObject)e.OriginalSource, 6) == nodesControl;
+            bool isCorrectSource = WPFUtils.GetVisualAncestorNLevelsUp((DependencyObject)e.OriginalSource, DragSourceAncestorLevels) == nodesControl;
             if (NodeMoveStart != null && isCorrectSource)
             {
                 var args = new NodeMoveStartEventArgs(ViewModel.SelectedNodes.Items, e);
@@ -511,7 +524,7 @@ namespace NodeNetwork.Views
         private void OnNodeDrag(object sender, DragDeltaEventArgs e)
         {
             // See OnNodeDragStart
-            bool isCorrectSource = WPFUtils.GetVisualAncestorNLevelsUp((DependencyObject)e.OriginalSource, 6) == nodesControl;
+            bool isCorrectSource = WPFUtils.GetVisualAncestorNLevelsUp((DependencyObject)e.OriginalSource, DragSourceAncestorLevels) == nodesControl;
             if (isCorrectSource)
             {
                 foreach (NodeViewModel node in ViewModel.SelectedNodes.Items)
@@ -530,18 +543,58 @@ namespace NodeNetwork.Views
         private void OnNodeDragEnd(object sender, DragCompletedEventArgs e)
         {
             // See OnNodeDragStart
-            bool isCorrectSource = WPFUtils.GetVisualAncestorNLevelsUp((DependencyObject)e.OriginalSource, 6) == nodesControl;
+            bool isCorrectSource = WPFUtils.GetVisualAncestorNLevelsUp((DependencyObject)e.OriginalSource, DragSourceAncestorLevels) == nodesControl;
             if (NodeMoveEnd != null && isCorrectSource)
             {
                 var args = new NodeMoveEndEventArgs(ViewModel.SelectedNodes.Items, e);
                 NodeMoveEnd(sender, args);
             }
         }
+
+        private void OnCommentGroupDragStart(object sender, DragStartedEventArgs e)
+        {
+            // Only handle drags originating from the commentGroupsControl Thumb wrapper.
+            // This prevents resize thumbs inside CommentGroupView from also triggering a move.
+            bool isCorrectSource = WPFUtils.GetVisualAncestorNLevelsUp((DependencyObject)e.OriginalSource, DragSourceAncestorLevels) == commentGroupsControl;
+            if (!isCorrectSource) return;
+
+            // Select the dragged comment group if not already selected.
+            var draggedCg = (sender as Thumb)?.DataContext as CommentGroupViewModel
+                            ?? ((sender as FrameworkElement)?.DataContext as CommentGroupViewModel);
+            if (draggedCg != null && !draggedCg.IsSelected)
+            {
+                if (!Keyboard.IsKeyDown(Key.LeftCtrl) && !Keyboard.IsKeyDown(Key.RightCtrl))
+                {
+                    foreach (var cg in ViewModel.CommentGroups.Items)
+                        cg.IsSelected = false;
+                    ViewModel.ClearSelection();
+                }
+                draggedCg.IsSelected = true;
+            }
+        }
+
+        private void OnCommentGroupDrag(object sender, DragDeltaEventArgs e)
+        {
+            bool isCorrectSource = WPFUtils.GetVisualAncestorNLevelsUp((DependencyObject)e.OriginalSource, DragSourceAncestorLevels) == commentGroupsControl;
+            if (!isCorrectSource) return;
+
+            foreach (var cg in ViewModel.SelectedCommentGroups.Items)
+            {
+                cg.Position = new Point(cg.Position.X + e.HorizontalChange, cg.Position.Y + e.VerticalChange);
+            }
+        }
+
+        private void OnCommentGroupDragEnd(object sender, DragCompletedEventArgs e)
+        {
+            // Nothing extra needed on drag end for comment groups.
+        }
         #endregion
 
         private void OnClickCanvas(object sender, MouseButtonEventArgs e)
         {
             ViewModel.ClearSelection();
+            foreach (var cg in ViewModel.CommentGroups.Items)
+                cg.IsSelected = false;
         }
 
         private IEnumerable<(ConnectionViewModel con, bool intersects)> FindIntersectingConnections()
