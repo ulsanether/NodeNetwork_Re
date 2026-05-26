@@ -121,8 +121,13 @@ namespace NodeNetwork.Views
                 this.WhenAnyValue(v => v.ViewModel.Color)
                     .Subscribe(color =>
                     {
-                        AccentBrush = new SolidColorBrush(color);
-                        FillBrush = new SolidColorBrush(Color.FromArgb(40, color.R, color.G, color.B));
+                        var accent = new SolidColorBrush(color);
+                        accent.Freeze();
+                        AccentBrush = accent;
+
+                        var fill = new SolidColorBrush(Color.FromArgb(40, color.R, color.G, color.B));
+                        fill.Freeze();
+                        FillBrush = fill;
                     })
                     .DisposeWith(d);
             });
