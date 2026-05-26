@@ -36,16 +36,16 @@ namespace NodeNetwork.Views
         public static readonly DependencyProperty ViewModelProperty = DependencyProperty.Register(nameof(ViewModel),
             typeof(NetworkViewModel), typeof(NetworkView), new PropertyMetadata(null));
 
-        public NetworkViewModel ViewModel
+        public NetworkViewModel? ViewModel
         {
-            get => (NetworkViewModel)GetValue(ViewModelProperty);
+            get => (NetworkViewModel?)GetValue(ViewModelProperty);
             set => SetValue(ViewModelProperty, value);
         }
 
-        object IViewFor.ViewModel
+        object? IViewFor.ViewModel
         {
             get => ViewModel;
-            set => ViewModel = (NetworkViewModel)value;
+            set => ViewModel = (NetworkViewModel?)value;
         }
         #endregion
 
