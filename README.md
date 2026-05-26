@@ -1,4 +1,14 @@
-﻿# ![](https://raw.githubusercontent.com/Wouterdek/NodeNetwork/gh-pages/img/logo128.png) NodeNetwork [![https://www.nuget.org/packages/NodeNetwork/](https://img.shields.io/nuget/v/NodeNetwork.svg?style=flat)](https://www.nuget.org/packages/NodeNetwork/)
+﻿
+
+# 코멘트 노드 추가와와 그룹 기능 수정 버전. 
+
+
+
+
+
+
+
+# ![](https://raw.githubusercontent.com/Wouterdek/NodeNetwork/gh-pages/img/logo128.png) NodeNetwork [![https://www.nuget.org/packages/NodeNetwork/](https://img.shields.io/nuget/v/NodeNetwork.svg?style=flat)](https://www.nuget.org/packages/NodeNetwork/)
 
 #### NodeNetwork는 노드 에디터 컴포넌트를 제공하는 .NET C# WPF 라이브러리입니다.
 
