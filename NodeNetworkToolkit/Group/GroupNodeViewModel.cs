@@ -1,3 +1,4 @@
+using System;
 using NodeNetwork.ViewModels;
 
 namespace NodeNetwork.Toolkit.Group
@@ -6,8 +7,9 @@ namespace NodeNetwork.Toolkit.Group
     /// A node that represents one instance of a <see cref="GroupNodeTemplate"/>.
     /// Multiple <see cref="GroupNodeViewModel"/> instances can reference the same template,
     /// sharing the internal subnet while each having independent external connections.
+    /// Dispose this instance when it is permanently removed from its parent network.
     /// </summary>
-    public class GroupNodeViewModel : NodeViewModel
+    public class GroupNodeViewModel : NodeViewModel, IDisposable
     {
         /// <summary>
         /// The template that defines this group node's internal structure.

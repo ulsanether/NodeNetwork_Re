@@ -144,7 +144,11 @@ namespace NodeNetwork.Toolkit.Group
 
         public virtual ValueNodeOutputViewModel<IObservableList<T>> CreateCompatibleOutput<T>(ValueListNodeInputViewModel<T> input)
         {
-            return new ValueNodeOutputViewModel<IObservableList<T>>();
+            return new ValueNodeOutputViewModel<IObservableList<T>>
+            {
+                Name = input.Name,
+                Icon = input.Icon
+            };
         }
 
         #endregion
@@ -204,7 +208,10 @@ namespace NodeNetwork.Toolkit.Group
         /// <inheritdoc/>
         public override NodeOutputViewModel GetSubnetInlet(NodeInputViewModel groupNodeInput)
         {
-            return _outputInputMapping.Single(p => p.Value == groupNodeInput).Key;
+            var pair = _outputInputMapping.FirstOrDefault(p => p.Value == groupNodeInput);
+            if (pair.Key == null)
+                throw new KeyNotFoundException($"No subnet inlet found for the given group node input.");
+            return pair.Key;
         }
 
         /// <inheritdoc/>
@@ -216,7 +223,10 @@ namespace NodeNetwork.Toolkit.Group
         /// <inheritdoc/>
         public override NodeOutputViewModel GetGroupNodeOutput(NodeInputViewModel exitInput)
         {
-            return _outputInputMapping.Single(p => p.Value == exitInput).Key;
+            var pair = _outputInputMapping.FirstOrDefault(p => p.Value == exitInput);
+            if (pair.Key == null)
+                throw new KeyNotFoundException($"No group node output found for the given exit input.");
+            return pair.Key;
         }
 
         #endregion
