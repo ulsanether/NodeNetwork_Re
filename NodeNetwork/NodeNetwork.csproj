@@ -6,7 +6,7 @@
     <UseWPF>true</UseWPF>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 	<LangVersion>latest</LangVersion>
-    <Version>6.1.0</Version>
+    <Version>6.2.0</Version>
     <Authors>Wouter De Keersmaecker</Authors>
     <PackageTags>wpf reactiveui node network editor node-editor graph</PackageTags>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
