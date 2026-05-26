@@ -182,6 +182,7 @@ namespace NodeNetwork.Views
 	        if (DesignerProperties.GetIsInDesignMode(this)) { return; }
 
 			SetupNodes();
+            SetupCommentGroups();
             SetupConnections();
             SetupCutLine();
             SetupViewportBinding();
@@ -196,6 +197,13 @@ namespace NodeNetwork.Views
         {
             this.WhenActivated(d => d(
                 this.BindList(ViewModel, vm => vm.Nodes, v => v.nodesControl.ItemsSource)
+            ));
+        }
+
+        private void SetupCommentGroups()
+        {
+            this.WhenActivated(d => d(
+                this.BindList(ViewModel, vm => vm.CommentGroups, v => v.commentGroupsControl.ItemsSource)
             ));
         }
 
@@ -537,11 +545,51 @@ namespace NodeNetwork.Views
                 NodeMoveEnd(sender, args);
             }
         }
+
+        private void OnCommentGroupDragStart(object sender, DragStartedEventArgs e)
+        {
+            // Only handle drags originating from the commentGroupsControl Thumb wrapper.
+            // This prevents resize thumbs inside CommentGroupView from also triggering a move.
+            bool isCorrectSource = WPFUtils.GetVisualAncestorNLevelsUp((DependencyObject)e.OriginalSource, 6) == commentGroupsControl;
+            if (!isCorrectSource) return;
+
+            // Select the dragged comment group if not already selected.
+            var draggedCg = (sender as Thumb)?.DataContext as CommentGroupViewModel
+                            ?? ((sender as FrameworkElement)?.DataContext as CommentGroupViewModel);
+            if (draggedCg != null && !draggedCg.IsSelected)
+            {
+                if (!Keyboard.IsKeyDown(Key.LeftCtrl) && !Keyboard.IsKeyDown(Key.RightCtrl))
+                {
+                    foreach (var cg in ViewModel.CommentGroups.Items)
+                        cg.IsSelected = false;
+                    ViewModel.ClearSelection();
+                }
+                draggedCg.IsSelected = true;
+            }
+        }
+
+        private void OnCommentGroupDrag(object sender, DragDeltaEventArgs e)
+        {
+            bool isCorrectSource = WPFUtils.GetVisualAncestorNLevelsUp((DependencyObject)e.OriginalSource, 6) == commentGroupsControl;
+            if (!isCorrectSource) return;
+
+            foreach (var cg in ViewModel.SelectedCommentGroups.Items)
+            {
+                cg.Position = new Point(cg.Position.X + e.HorizontalChange, cg.Position.Y + e.VerticalChange);
+            }
+        }
+
+        private void OnCommentGroupDragEnd(object sender, DragCompletedEventArgs e)
+        {
+            // Nothing extra needed on drag end for comment groups.
+        }
         #endregion
 
         private void OnClickCanvas(object sender, MouseButtonEventArgs e)
         {
             ViewModel.ClearSelection();
+            foreach (var cg in ViewModel.CommentGroups.Items)
+                cg.IsSelected = false;
         }
 
         private IEnumerable<(ConnectionViewModel con, bool intersects)> FindIntersectingConnections()

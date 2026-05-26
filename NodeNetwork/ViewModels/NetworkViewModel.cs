@@ -47,6 +47,19 @@ namespace NodeNetwork.ViewModels
         public IObservableList<NodeViewModel> SelectedNodes { get; }
         #endregion
 
+        #region CommentGroups
+        /// <summary>
+        /// The list of inline comment boxes in this network.
+        /// Comment boxes are purely visual overlays that group nodes without affecting data flow.
+        /// </summary>
+        public ISourceList<CommentGroupViewModel> CommentGroups { get; } = new SourceList<CommentGroupViewModel>();
+
+        /// <summary>
+        /// A list of comment boxes that are currently selected in the UI.
+        /// </summary>
+        public IObservableList<CommentGroupViewModel> SelectedCommentGroups { get; }
+        #endregion
+
         #region Connections
         /// <summary>
         /// The list of connections in this network.
@@ -242,6 +255,12 @@ namespace NodeNetwork.ViewModels
                 addedNode => addedNode.Parent = this,
                 removedNode => removedNode.Parent = null
             );
+
+            // Setup parent relationship in comment groups.
+            CommentGroups.Connect().ActOnEveryObject(
+                addedCg => addedCg.Parent = this,
+                removedCg => removedCg.Parent = null
+            );
             
             // SelectedNodes is a derived collection of all nodes with IsSelected = true.
             SelectedNodes = Nodes.Connect()
@@ -249,10 +268,17 @@ namespace NodeNetwork.ViewModels
                 .Filter(node => node.IsSelected)
                 .AsObservableList();
 
-            // When DeleteSelectedNodes is invoked, remove all nodes that are user-removable and selected.
+            // SelectedCommentGroups is a derived collection of all comment groups with IsSelected = true.
+            SelectedCommentGroups = CommentGroups.Connect()
+                .AutoRefresh(cg => cg.IsSelected)
+                .Filter(cg => cg.IsSelected)
+                .AsObservableList();
+
+            // When DeleteSelectedNodes is invoked, remove all nodes and comment groups that are user-removable and selected.
             DeleteSelectedNodes = ReactiveCommand.Create(() =>
             {
                 Nodes.RemoveMany(SelectedNodes.Items.Where(n => n.CanBeRemovedByUser).ToArray());
+                CommentGroups.RemoveMany(SelectedCommentGroups.Items.Where(cg => cg.CanBeRemovedByUser).ToArray());
             });
 
 			// When a node is removed, delete any connections from/to that node.

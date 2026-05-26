@@ -28,6 +28,38 @@
                 -->
                 <Canvas Name="backgroundCanvas" IsHitTestVisible="False" Width="1E15" Height="1E15" Canvas.Left="-1E6" Canvas.Top="-1E6" Background="{Binding NetworkBackground, ElementName=self}"/>
 
+                <ItemsControl x:Name="commentGroupsControl" Width="{Binding ActualWidth, ElementName=contentContainer}" Height="{Binding ActualHeight, ElementName=contentContainer}" IsTabStop="False">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="viewModels:CommentGroupViewModel">
+                            <Canvas>
+                                <Thumb DragStarted="OnCommentGroupDragStart" DragDelta="OnCommentGroupDrag" DragCompleted="OnCommentGroupDragEnd"
+                                       Canvas.Left="{Binding Path=Position.X}" Canvas.Top="{Binding Path=Position.Y}">
+                                    <Thumb.Template>
+                                        <ControlTemplate>
+                                            <local:CommentGroupView ViewModel="{Binding}"
+                                                                    HorizontalContentAlignment="Stretch"
+                                                                    VerticalContentAlignment="Stretch"
+                                                                    IsTabStop="False"/>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Canvas>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                    <ItemsControl.ItemContainerStyle>
+                        <Style TargetType="{x:Type ContentPresenter}">
+                            <Style.Setters>
+                                <Setter Property="Panel.ZIndex" Value="{Binding Path=IsSelected, Converter={StaticResource BoolToZIndexConverter}}"/>
+                            </Style.Setters>
+                        </Style>
+                    </ItemsControl.ItemContainerStyle>
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <Canvas/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+
                 <ItemsControl x:Name="connectionsControl" Width="{Binding ActualWidth, ElementName=contentContainer}" Height="{Binding ActualHeight, ElementName=contentContainer}" IsTabStop="False">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
