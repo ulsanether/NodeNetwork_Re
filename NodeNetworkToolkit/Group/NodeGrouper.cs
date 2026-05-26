@@ -23,6 +23,16 @@ namespace NodeNetwork.Toolkit.Group
         public Func<NetworkViewModel, NodeViewModel> GroupNodeFactory { get; set; } = subnet => new NodeViewModel();
 
         /// <summary>
+        /// Constructs the NodeGroupIOBinding for a <see cref="GroupNodeViewModel"/> instance that is
+        /// based on a <see cref="GroupNodeTemplate"/>.
+        /// The first parameter is the <see cref="GroupNodeViewModel"/>, the second is the shared
+        /// entrance node, and the third is the shared exit node.
+        /// Defaults to creating a <see cref="ValueTemplateNodeGroupIOBinding"/>.
+        /// </summary>
+        public Func<GroupNodeViewModel, NodeViewModel, NodeViewModel, NodeGroupIOBinding> TemplateIOBindingFactory { get; set; }
+            = (groupNode, entranceNode, exitNode) => new ValueTemplateNodeGroupIOBinding(groupNode, entranceNode, exitNode);
+
+        /// <summary>
         /// Constructs a viewmodel for the subnetwork that will contain the group member nodes.
         /// </summary>
         public Func<NetworkViewModel> SubNetworkFactory { get; set; } = () => new NetworkViewModel();
@@ -44,6 +54,9 @@ namespace NodeNetwork.Toolkit.Group
 
         private bool CheckPropertiesValid() =>
             GroupNodeFactory != null && SubNetworkFactory != null && EntranceNodeFactory != null && ExitNodeFactory != null && IOBindingFactory != null;
+
+        private bool CheckTemplatePropertiesValid() =>
+            SubNetworkFactory != null && EntranceNodeFactory != null && ExitNodeFactory != null && TemplateIOBindingFactory != null;
 
         /// <summary>
         /// Move the specified set of nodes to a new subnetwork, create a new group node that contains this subnet,
@@ -264,6 +277,165 @@ namespace NodeNetwork.Toolkit.Group
                 var connections = outputs.Select(output => supernet.ConnectionFactory(input, output));
                 supernet.Connections.AddRange(connections);
             }
+        }
+
+        /// <summary>
+        /// Creates a reusable <see cref="GroupNodeTemplate"/> from a set of nodes and adds an initial
+        /// <see cref="GroupNodeViewModel"/> instance to <paramref name="network"/>.
+        /// The template's subnet is shared by all subsequent instances created via
+        /// <see cref="CreateInstance"/>.
+        /// </summary>
+        /// <param name="network">The parent network in which the initial group node will be placed.</param>
+        /// <param name="nodesToGroup">The nodes to move into the template's subnet.</param>
+        /// <returns>
+        /// The new <see cref="GroupNodeTemplate"/> containing the shared subnet.
+        /// The first <see cref="GroupNodeViewModel"/> instance is already registered in the template
+        /// and added to <paramref name="network"/>.
+        /// Returns <c>null</c> if the nodes cannot be grouped (e.g. not a contiguous sub-graph).
+        /// </returns>
+        public GroupNodeTemplate CreateGroupTemplate(NetworkViewModel network, IEnumerable<NodeViewModel> nodesToGroup)
+        {
+            if (!CheckTemplatePropertiesValid())
+            {
+                throw new InvalidOperationException("SubNetworkFactory, EntranceNodeFactory, ExitNodeFactory and TemplateIOBindingFactory must all be set before usage");
+            }
+            else if (network == null)
+            {
+                throw new ArgumentNullException(nameof(network));
+            }
+            else if (nodesToGroup == null)
+            {
+                throw new ArgumentNullException(nameof(nodesToGroup));
+            }
+
+            var groupNodesSet = nodesToGroup is HashSet<NodeViewModel> set
+                ? set
+                : new HashSet<NodeViewModel>(nodesToGroup);
+
+            if (groupNodesSet.Count == 0 || !GraphAlgorithms.IsContinuousSubGraphSet(groupNodesSet))
+            {
+                return null;
+            }
+
+            // Build the shared subnet
+            var subnet = SubNetworkFactory();
+            var entranceNode = EntranceNodeFactory();
+            var exitNode = ExitNodeFactory();
+            subnet.Nodes.AddRange(new[] { entranceNode, exitNode });
+
+            // Create the template
+            var template = new GroupNodeTemplate(subnet, entranceNode, exitNode);
+
+            // Create the first instance
+            var groupNode = new GroupNodeViewModel(template);
+            network.Nodes.Add(groupNode);
+
+            // Position nodes
+            groupNode.Position = new Point(
+                groupNodesSet.Average(n => n.Position.X),
+                groupNodesSet.Average(n => n.Position.Y));
+
+            double yCoord = groupNodesSet.Average(n => n.Position.Y);
+            entranceNode.Position = new Point(groupNodesSet.Min(n => n.Position.X) - 100, yCoord);
+            exitNode.Position = new Point(groupNodesSet.Max(n => n.Position.X) + 100, yCoord);
+
+            // Create the IOBinding — this also drives port creation on entrance/exit nodes
+            // via the template binding (entrance/exit → group node)
+            // For the initial creation we first build the binding, then use it to create ports.
+            var ioBinding = TemplateIOBindingFactory(groupNode, entranceNode, exitNode);
+            groupNode.IOBinding = ioBinding;
+
+            // Classify connections
+            var subnetConnections = new List<ConnectionViewModel>();
+            var borderInputConnections = new List<ConnectionViewModel>();
+            var borderOutputConnections = new List<ConnectionViewModel>();
+            foreach (var con in network.Connections.Items)
+            {
+                bool inputIsInSubnet = groupNodesSet.Contains(con.Input.Parent);
+                bool outputIsInSubnet = groupNodesSet.Contains(con.Output.Parent);
+
+                if (inputIsInSubnet && outputIsInSubnet)
+                    subnetConnections.Add(con);
+                else if (inputIsInSubnet)
+                    borderInputConnections.Add(con);
+                else if (outputIsInSubnet)
+                    borderOutputConnections.Add(con);
+            }
+
+            // Create entrance/exit ports for border connections
+            var groupNodeInputs = new Dictionary<NodeInputViewModel, NodeInputViewModel>();
+            var groupNodeOutputs = new Dictionary<NodeOutputViewModel, NodeOutputViewModel>();
+
+            foreach (var borderInCon in borderInputConnections)
+            {
+                if (!groupNodeInputs.ContainsKey(borderInCon.Input))
+                {
+                    groupNodeInputs[borderInCon.Input] = ioBinding.AddNewGroupNodeInput(borderInCon.Output);
+                }
+            }
+
+            foreach (var borderOutCon in borderOutputConnections)
+            {
+                if (!groupNodeOutputs.ContainsKey(borderOutCon.Output))
+                {
+                    groupNodeOutputs[borderOutCon.Output] = ioBinding.AddNewGroupNodeOutput(borderOutCon.Input);
+                }
+            }
+
+            // Transfer nodes and inner connections to subnet
+            network.Connections.Edit(l =>
+            {
+                l.RemoveMany(subnetConnections);
+                l.RemoveMany(borderInputConnections);
+                l.RemoveMany(borderOutputConnections);
+            });
+            network.Nodes.RemoveMany(groupNodesSet);
+            subnet.Nodes.AddRange(groupNodesSet);
+            subnet.Connections.AddRange(subnetConnections.Select(con => subnet.ConnectionFactory(con.Input, con.Output)));
+
+            // Restore connections in/out of group
+            network.Connections.AddRange(Enumerable.Concat(
+                borderInputConnections.Select(con => network.ConnectionFactory(groupNodeInputs[con.Input], con.Output)),
+                borderOutputConnections.Select(con => network.ConnectionFactory(con.Input, groupNodeOutputs[con.Output]))));
+            subnet.Connections.AddRange(Enumerable.Concat(
+                borderInputConnections.Select(con => subnet.ConnectionFactory(con.Input, ioBinding.GetSubnetInlet(groupNodeInputs[con.Input]))),
+                borderOutputConnections.Select(con => subnet.ConnectionFactory(ioBinding.GetSubnetOutlet(groupNodeOutputs[con.Output]), con.Output))));
+
+            return template;
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="GroupNodeViewModel"/> instance from an existing
+        /// <see cref="GroupNodeTemplate"/> and adds it to <paramref name="targetNetwork"/>.
+        /// The new instance shares the same subnet as all other instances of the template.
+        /// When ports are added to or removed from the template's entrance/exit nodes,
+        /// the reactive binding automatically updates this instance's inputs/outputs too.
+        /// </summary>
+        /// <param name="template">The template to instantiate.</param>
+        /// <param name="targetNetwork">The network to add the new group node to.</param>
+        /// <returns>The <see cref="NodeGroupIOBinding"/> for the new instance.</returns>
+        public NodeGroupIOBinding CreateInstance(GroupNodeTemplate template, NetworkViewModel targetNetwork)
+        {
+            if (!CheckTemplatePropertiesValid())
+            {
+                throw new InvalidOperationException("TemplateIOBindingFactory must be set before usage");
+            }
+            else if (template == null)
+            {
+                throw new ArgumentNullException(nameof(template));
+            }
+            else if (targetNetwork == null)
+            {
+                throw new ArgumentNullException(nameof(targetNetwork));
+            }
+
+            var groupNode = new GroupNodeViewModel(template);
+            targetNetwork.Nodes.Add(groupNode);
+
+            var ioBinding = TemplateIOBindingFactory(groupNode, template.EntranceNode, template.ExitNode);
+            groupNode.IOBinding = ioBinding;
+
+            return ioBinding;
         }
     }
 }
