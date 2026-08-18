@@ -6,5 +6,5 @@
              xmlns:local="clr-namespace:ExampleCodeGenApp.Views"
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300">
-    <TextBox x:Name="TextBox" MinWidth="100"/>
+    <TextBox x:Name="TextBox" AutomationProperties.Name="Value" MinWidth="100"/>
 </UserControl>

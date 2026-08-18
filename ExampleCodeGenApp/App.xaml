@@ -4,6 +4,23 @@
              xmlns:local="clr-namespace:ExampleCodeGenApp"
              StartupUri="Views/MainWindow.xaml">
     <Application.Resources>
-         
+        <ResourceDictionary>
+            <!-- Prevents ReactiveUI from assigning null to AutomationProperties.Name when ViewModel is null -->
+            <Style TargetType="TextBox">
+                <Setter Property="AutomationProperties.Name" Value=""/>
+            </Style>
+            <Style TargetType="ComboBox">
+                <Setter Property="AutomationProperties.Name" Value=""/>
+            </Style>
+            <Style TargetType="Button">
+                <Setter Property="AutomationProperties.Name" Value=""/>
+            </Style>
+            <Style TargetType="CheckBox">
+                <Setter Property="AutomationProperties.Name" Value=""/>
+            </Style>
+            <Style TargetType="Slider">
+                <Setter Property="AutomationProperties.Name" Value=""/>
+            </Style>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

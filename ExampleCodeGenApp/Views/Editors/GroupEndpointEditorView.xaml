@@ -7,7 +7,7 @@
              mc:Ignorable="d" 
              d:DesignHeight="25" d:DesignWidth="800">
     <StackPanel Orientation="Horizontal">
-        <TextBox x:Name="nameTextBox" Width="125"/>
+        <TextBox x:Name="nameTextBox" AutomationProperties.Name="Endpoint Name" Width="125"/>
         <ToggleButton x:Name="editNameButton" Margin="5,0,0,0">Edit name</ToggleButton>
         <Button x:Name="upButton" Margin="5,0,0,0">▲</Button>
         <Button x:Name="downButton" Margin="5,0,0,0">▼</Button>

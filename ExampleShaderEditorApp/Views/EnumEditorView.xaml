@@ -6,7 +6,7 @@
              xmlns:local="clr-namespace:ExampleShaderEditorApp.Views"
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300">
-    <ComboBox x:Name="valueComboBox">
+    <ComboBox x:Name="valueComboBox" AutomationProperties.Name="Value">
         <ComboBox.ItemTemplate>
             <DataTemplate>
                 <TextBlock Text="{Binding}"/>
